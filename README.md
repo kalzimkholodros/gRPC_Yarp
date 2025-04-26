@@ -1,6 +1,6 @@
-# Microservices Architecture with Docker and Kubernetes
+# Microservices Architecture with Docker
 
-This project demonstrates a microservices architecture using .NET 8, Docker, and Kubernetes. It consists of multiple services communicating through HTTP/2, gRPC, and Redis.
+This project demonstrates a microservices architecture using .NET 8, Docker, Yarp. It consists of multiple services communicating through HTTP/2, gRPC, and Redis.
 
 ## Architecture Overview
 
