@@ -49,10 +49,10 @@ graph TD
     PgAdmin -->|Database Management| Postgres
 
     %% Communication Protocols
-    classDef service fill:#f9f,stroke:#333,stroke-width:2px
-    classDef database fill:#bbf,stroke:#333,stroke-width:2px
-    classDef gateway fill:#f96,stroke:#333,stroke-width:2px
-    classDef client fill:#9f9,stroke:#333,stroke-width:2px
+    classDef service fill:#f9f,stroke:#333,stroke-width:2px,color:#000
+    classDef database fill:#bbf,stroke:#333,stroke-width:2px,color:#000
+    classDef gateway fill:#f96,stroke:#333,stroke-width:2px,color:#000
+    classDef client fill:#9f9,stroke:#333,stroke-width:2px,color:#000
 
     class Auth,Product,Basket service
     class Redis,Postgres database
