@@ -22,7 +22,7 @@ graph TD
 
     subgraph Data Layer
         Redis[(Redis Cache)]
-        Postgres[(PostgreSQL)]
+        Postgres[(🐘 PostgreSQL)]
         PgAdmin[PgAdmin<br/>http://localhost:5050]
     end
 
@@ -51,15 +51,16 @@ graph TD
     %% Communication Protocols
     classDef service fill:#f9f,stroke:#333,stroke-width:2px,color:#000
     classDef database fill:#bbf,stroke:#333,stroke-width:2px,color:#000
+    classDef redis fill:#f00,stroke:#333,stroke-width:2px,color:#fff
     classDef gateway fill:#f96,stroke:#333,stroke-width:2px,color:#000
     classDef client fill:#9f9,stroke:#333,stroke-width:2px,color:#000
 
     class Auth,Product,Basket service
-    class Redis,Postgres database
+    class Postgres database
+    class Redis redis
     class YARP gateway
     class Client client
 ```
-
 ## Services
 
 ### 1. YARP API Gateway
