@@ -1,0 +1,177 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:latest
+    container_name: postgres
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_MULTIPLE_DATABASES=AuthDb,ProductDb,BasketDb
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - app_network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:latest
+    container_name: redis
+    ports:
+      - "6379:6379"
+    networks:
+      - app_network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  pgadmin:
+    image: dpage/pgadmin4
+    container_name: pgadmin
+    environment:
+      - PGADMIN_DEFAULT_EMAIL=admin@admin.com
+      - PGADMIN_DEFAULT_PASSWORD=admin
+    ports:
+      - "5050:80"
+    depends_on:
+      - postgres
+    networks:
+      - app_network
+
+  authservice:
+    build:
+      context: ./AuthService
+      dockerfile: AuthService.API/Dockerfile
+    container_name: authservice
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ConnectionStrings__DefaultConnection=Host=postgres;Port=5432;Database=AuthDb;Username=postgres;Password=postgres
+      - ASPNETCORE_DATA_PROTECTION__KEYS__PATH=/app/keys
+      - ASPNETCORE_DATA_PROTECTION__KEYS__ENCRYPTION_ALGORITHM=AES_256_CBC
+      - ASPNETCORE_DATA_PROTECTION__KEYS__ENCRYPTION_KEY=your-encryption-key-here-must-be-at-least-32-characters
+      - ASPNETCORE_URLS=http://+:5025
+    ports:
+      - "5025:5025"
+    volumes:
+      - authservice_keys:/app/keys
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - app_network
+
+  productservice:
+    build:
+      context: .
+      dockerfile: ProductService/Dockerfile
+    container_name: productservice
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ConnectionStrings__DefaultConnection=Host=postgres;Port=5432;Database=ProductDb;Username=postgres;Password=postgres
+      - ASPNETCORE_URLS=https://+:5020;https://+:5021
+      - ASPNETCORE_Kestrel__Certificates__Default__Path=/app/cert.pfx
+      - ASPNETCORE_Kestrel__Certificates__Default__Password=password
+      - ASPNETCORE_Kestrel__Protocols=Http1AndHttp2
+    ports:
+      - "5020:5020"
+      - "5021:5021"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - ./Protos:/app/Protos
+      - ./cert.pfx:/app/cert.pfx:ro
+    networks:
+      - app_network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "https://localhost:5020/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  basketservice:
+    build:
+      context: .
+      dockerfile: BasketService/Dockerfile
+    container_name: basketservice
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ConnectionStrings__DefaultConnection=Host=postgres;Port=5432;Database=BasketDb;Username=postgres;Password=postgres
+      - ASPNETCORE_URLS=https://+:5113;https://+:5114
+      - ASPNETCORE_Kestrel__Certificates__Default__Path=/app/cert.pfx
+      - ASPNETCORE_Kestrel__Certificates__Default__Password=password
+      - Redis__ConnectionString=redis:6379
+      - ProductService__Url=https://productservice:5021
+      - DOTNET_SYSTEM_NET_HTTP_SOCKETSHTTPHANDLER_ENABLEMULTIPLEHTTP2CONNECTIONS=true
+      - GRPC_DOTNET_ENABLE_HTTP2=true
+      - GRPC_DOTNET_ENABLE_HTTP3=false
+      - ASPNETCORE_Kestrel__Protocols=Http1AndHttp2
+      - ASPNETCORE_LOGGING__LOGLEVEL__DEFAULT=Debug
+    ports:
+      - "5113:5113"
+      - "5114:5114"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      productservice:
+        condition: service_started
+      redis:
+        condition: service_started
+    volumes:
+      - ./Protos:/app/Protos
+      - ./cert.pfx:/app/cert.pfx:ro
+    networks:
+      - app_network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "https://localhost:5113/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  yarpapigateway:
+    build:
+      context: ./YarpApiGateway
+      dockerfile: Dockerfile
+    container_name: yarpapigateway
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ASPNETCORE_URLS=https://+:5261
+      - ASPNETCORE_Kestrel__Certificates__Default__Path=/app/cert.pfx
+      - ASPNETCORE_Kestrel__Certificates__Default__Password=password
+      - ASPNETCORE_Kestrel__Protocols=Http1AndHttp2
+    ports:
+      - "5261:5261"
+    depends_on:
+      - authservice
+      - productservice
+      - basketservice
+    volumes:
+      - ./cert.pfx:/app/cert.pfx:ro
+    networks:
+      - app_network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "https://localhost:5261/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+networks:
+  app_network:
+    driver: bridge
+
+volumes:
+  postgres_data:
+  redis_data:
+  authservice_keys:
+  cert_volume: 
