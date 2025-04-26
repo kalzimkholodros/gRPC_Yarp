@@ -6,15 +6,58 @@ This project demonstrates a microservices architecture using .NET 8, Docker, Yar
 
 ```mermaid
 graph TD
-    Client[Client] --> YARP[YARP API Gateway]
-    YARP --> Auth[Auth Service]
-    YARP --> Product[Product Service]
-    YARP --> Basket[Basket Service]
-    Basket --> Product
-    Basket --> Redis[(Redis)]
-    Auth --> Postgres[(Postgres)]
-    Product --> Postgres
-    Basket --> Postgres
+    subgraph Client Layer
+        Client[Client Browser]
+    end
+
+    subgraph API Gateway Layer
+        YARP[YARP API Gateway<br/>https://localhost:5261]
+    end
+
+    subgraph Service Layer
+        Auth[Auth Service<br/>http://localhost:5025]
+        Product[Product Service<br/>http://localhost:5020<br/>gRPC:5021]
+        Basket[Basket Service<br/>http://localhost:5113<br/>gRPC:5114]
+    end
+
+    subgraph Data Layer
+        Redis[(Redis Cache)]
+        Postgres[(PostgreSQL)]
+        PgAdmin[PgAdmin<br/>http://localhost:5050]
+    end
+
+    %% Client to Gateway
+    Client -->|HTTPS| YARP
+
+    %% Gateway to Services
+    YARP -->|/auth/*| Auth
+    YARP -->|/product/*| Product
+    YARP -->|/basket/*| Basket
+
+    %% Service to Service Communication
+    Basket -->|gRPC<br/>HTTP/2| Product
+    Auth -->|HTTP| Product
+    Auth -->|HTTP| Basket
+
+    %% Service to Data Layer
+    Auth -->|Postgres<br/>AuthDb| Postgres
+    Product -->|Postgres<br/>ProductDb| Postgres
+    Basket -->|Postgres<br/>BasketDb| Postgres
+    Basket -->|Redis Cache| Redis
+
+    %% Database Management
+    PgAdmin -->|Database Management| Postgres
+
+    %% Communication Protocols
+    classDef service fill:#f9f,stroke:#333,stroke-width:2px
+    classDef database fill:#bbf,stroke:#333,stroke-width:2px
+    classDef gateway fill:#f96,stroke:#333,stroke-width:2px
+    classDef client fill:#9f9,stroke:#333,stroke-width:2px
+
+    class Auth,Product,Basket service
+    class Redis,Postgres database
+    class YARP gateway
+    class Client client
 ```
 
 ## Services
